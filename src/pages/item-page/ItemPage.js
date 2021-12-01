@@ -22,6 +22,38 @@ import {
 } from "@react-three/drei";
 import BASEPATH from "../../basepath";
 
+import { useSpring } from "@react-spring/core";
+import { a } from "@react-spring/three";
+
+var mix = function (color_1, color_2, weight) {
+  function d2h(d) {
+    return d.toString(16);
+  } // convert a decimal value to hex
+  function h2d(h) {
+    return parseInt(h, 16);
+  } // convert a hex value to decimal
+
+  weight = typeof weight !== "undefined" ? weight : 50; // set the weight to 50%, if that argument is omitted
+
+  var color = "#";
+
+  for (var i = 0; i <= 5; i += 2) {
+    // loop through each of the 3 hex pairs—red, green, and blue
+    var v1 = h2d(color_1.substr(i + 1, 2)), // extract the current pairs
+      v2 = h2d(color_2.substr(i + 1, 2)),
+      // combine the current pairs from each source color, according to the specified weight
+      val = d2h(Math.floor(v2 + (v1 - v2) * (weight / 100.0)));
+
+    while (val.length < 2) {
+      val = "0" + val;
+    } // prepend a '0' if val results in a single digit
+
+    color += val; // concatenate val to our new color string
+  }
+
+  return color; // PROFIT!
+};
+
 function Box(props) {
   // This reference will give us direct access to the mesh
   const mesh = useRef();
@@ -45,10 +77,37 @@ function Box(props) {
     </mesh>
   );
 }
+function hexToRgb(hex) {
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16) / 255.0,
+        g: parseInt(result[2], 16) / 255.0,
+        b: parseInt(result[3], 16) / 255.0,
+      }
+    : null;
+}
 
 function GroundPlane({ bgcolor }) {
-  //roundshadow.png
   const alphaMap = useLoader(TextureLoader, BASEPATH + "/alphamap.jpg");
+
+  const [currentColor, setCurrentColor] = useState(bgcolor);
+  const color = useRef(bgcolor);
+  const time = useRef(0);
+  const mat = useRef();
+  const STEP = 0.01;
+
+  useFrame(({ clock }) => {
+    const now = clock.getElapsedTime();
+    //console.log(now);
+    if (now - time.current > STEP) {
+      time.current = now;
+      const c = mix(bgcolor, color.current, 3);
+      color.current = c;
+      mat.current.color = hexToRgb(c);
+    }
+    //console.log(mat.current.color);
+  });
 
   return (
     <Plane
@@ -56,13 +115,15 @@ function GroundPlane({ bgcolor }) {
       receiveShadow
       rotation-x={-Math.PI / 2}
       position={[0, -12, 0]}
+      //onClick={() => setActive(Number(!active))}
     >
       <meshPhysicalMaterial
+        ref={mat}
         attach="material"
-        color={bgcolor}
+        //color={bgcolor}
         roughness={0.5}
         transparent
-        opacity={0.3}
+        opacity={0.99}
         alphaMap={alphaMap}
       />
     </Plane>
@@ -71,19 +132,24 @@ function GroundPlane({ bgcolor }) {
 
 function UnusualCube() {
   const { scene, nodes, materials, animations } = useGLTF(
-    BASEPATH + "/model_2.glb"
+    BASEPATH + "/model_3.glb"
   );
   const { ref, mixer, names, actions, clips } = useAnimations(
     animations,
     scene
   );
   useEffect(() => {
-    //actions?.jump.play();
+    console.log(actions);
+    let i = 0;
+    for (let action of Object.values(actions)) {
+      action.play();
+      i++;
+    }
   });
 
-  for (let child of scene.children[0].children) {
+  for (let child of Object.values(nodes)) {
     child.castShadow = true;
-    //child.receiveShadow = true;
+    child.receiveShadow = true;
   }
 
   console.log(nodes);
@@ -92,16 +158,6 @@ function UnusualCube() {
   return (
     <group scale={[0.5, 0.5, 0.5]} position={[-5, -5, 5]}>
       <primitive object={scene} />
-      {/*       
-      {Object.values(nodes)
-        .filter((node) => node.name.startsWith("main_mesh"))
-        .map((node) => (
-          <primitive object={node} key={node.name} />
-        ))}
-      {/* <mesh>
-        <boxGeometry attach="geometry" />
-        <meshPhysicalMaterial attach="material" color="white" />
-      </mesh> */}
     </group>
   );
 }
@@ -119,6 +175,15 @@ function ItemPage() {
   const [texx, setTexx] = useState("");
 
   const [bgcolor, setBgcolor] = useState("#0a1022");
+  /*
+  const [colorAnimActive, setColorAnimActive] = useState(0);
+
+  const { spring } = useSpring({
+    spring: active,
+    config: { mass: 5, tension: 400, friction: 50, precision: 0.0001 },
+  });
+
+  const color = spring.to([0, 1], ["#000000", "#ffffff"]);*/
 
   return (
     <div className="page">
@@ -137,12 +202,13 @@ function ItemPage() {
           shadows
         >
           <pointLight
-            //object={directionalLight1}
             castShadow
+            shadow-radius={0}
+            shadow-bias={-0.01}
             position={[-10, 20, 10]}
             intensity={1}
-            shadow-mapSize-width={1024}
-            shadow-mapSize-height={1024}
+            shadow-mapSize-width={512}
+            shadow-mapSize-height={512}
           />
           {/* <primitive object={directionalLight1.target} position={[0, 0, 0]}/> */}
           {/* <pointLight position={[10, 10, 10]} intensity={0.1} color={"#ff0000"} /> */}
@@ -163,7 +229,7 @@ function ItemPage() {
           <Suspense fallback={null}>
             <UnusualCube />
           </Suspense>
-          {/* <ContactShadows /> */}
+          <ContactShadows />
           {/* <fog args={["white", 10, 50]} /> */}
         </Canvas>
       </div>
