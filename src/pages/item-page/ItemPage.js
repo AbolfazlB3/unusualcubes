@@ -19,11 +19,18 @@ import {
   Plane,
   useGLTF,
   useAnimations,
+  AdaptiveDpr,
+  Merged,
+  Sky,
+  Html,
+  softShadows,
 } from "@react-three/drei";
 import BASEPATH from "../../basepath";
 
 import { useSpring } from "@react-spring/core";
 import { a } from "@react-spring/three";
+import { Object3D } from "three";
+import UnusualCube from "../../components/UnusualCube/UnusualCube";
 
 var mix = function (color_1, color_2, weight) {
   function d2h(d) {
@@ -77,6 +84,7 @@ function Box(props) {
     </mesh>
   );
 }
+
 function hexToRgb(hex) {
   var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -102,7 +110,7 @@ function GroundPlane({ bgcolor }) {
     //console.log(now);
     if (now - time.current > STEP) {
       time.current = now;
-      const c = mix(bgcolor, color.current, 3);
+      const c = mix(bgcolor, color.current, 3); // 3%
       color.current = c;
       mat.current.color = hexToRgb(c);
     }
@@ -130,38 +138,6 @@ function GroundPlane({ bgcolor }) {
   );
 }
 
-function UnusualCube() {
-  const { scene, nodes, materials, animations } = useGLTF(
-    BASEPATH + "/model_3.glb"
-  );
-  const { ref, mixer, names, actions, clips } = useAnimations(
-    animations,
-    scene
-  );
-  useEffect(() => {
-    console.log(actions);
-    let i = 0;
-    for (let action of Object.values(actions)) {
-      action.play();
-      i++;
-    }
-  });
-
-  for (let child of Object.values(nodes)) {
-    child.castShadow = true;
-    child.receiveShadow = true;
-  }
-
-  console.log(nodes);
-  console.log(typeof nodes);
-
-  return (
-    <group scale={[0.5, 0.5, 0.5]} position={[-5, -5, 5]}>
-      <primitive object={scene} />
-    </group>
-  );
-}
-
 function ItemPage() {
   //const gltf = useLoader(GLTFLoader, "data/model.glb");
 
@@ -172,7 +148,12 @@ function ItemPage() {
   );*/
 
   const [state, setState] = useState(false);
-  const [texx, setTexx] = useState("");
+  const [texx, setTexx] = useState(
+    "https://ipfs.io/ipfs/Qmf6gwEkmkW6VTEsku8nenQVroV9A7wuPKKSX7YCtbNwmf"
+  );
+  const [modelUrl, setModelUrl] = useState(
+    "https://ipfs.io/ipfs/Qmf6gwEkmkW6VTEsku8nenQVroV9A7wuPKKSX7YCtbNwmf"
+  );
 
   const [bgcolor, setBgcolor] = useState("#0a1022");
   /*
@@ -200,22 +181,31 @@ function ItemPage() {
           colorManagement
           shadowMap
           shadows
+          mode="concurrent"
         >
-          <pointLight
+          <AdaptiveDpr pixelated />
+          <pointLight position={[-5, 30, -12]} intensity={0.3} />
+          <spotLight
             castShadow
-            shadow-radius={0}
-            shadow-bias={-0.01}
+            //shadow-radius={0}
+            shadow-bias={-0.001}
             position={[-10, 20, 10]}
             intensity={1}
             shadow-mapSize-width={512}
             shadow-mapSize-height={512}
+            angle={Math.PI / 5}
+            penumbra={1}
+          />
+          <pointLight
+            position={[10, 20, -5]}
+            intensity={0.3}
+            color={"#fffaf0"}
           />
           {/* <primitive object={directionalLight1.target} position={[0, 0, 0]}/> */}
-          {/* <pointLight position={[10, 10, 10]} intensity={0.1} color={"#ff0000"} /> */}
           <OrbitControls minDistance={10} maxDistance={100} enablePan={false} />
 
           <Suspense fallback={null}>
-            <Text>{texx}</Text>
+            {/* <Text>{texx}</Text> */}
             <GroundPlane bgcolor={bgcolor} />
           </Suspense>
           <Suspense fallback={null}>
@@ -227,9 +217,16 @@ function ItemPage() {
             />
           </Suspense>
           <Suspense fallback={null}>
-            <UnusualCube />
+            <UnusualCube
+              url={
+                modelUrl
+                //"https://ipfs.io/ipfs/Qmf6gwEkmkW6VTEsku8nenQVroV9A7wuPKKSX7YCtbNwmf"
+              }
+              receiveShadow
+            />
           </Suspense>
-          <ContactShadows />
+          {/* <ContactShadows width={200} height={200} position-y={-10} far={20} /> */}
+          {/* <Sky sunPosition={[100, -3, -50]} distance={1000} /> */}
           {/* <fog args={["white", 10, 50]} /> */}
         </Canvas>
       </div>
@@ -244,7 +241,14 @@ function ItemPage() {
         >
           Random Color
         </button>
-        <input value={texx} onChange={(e) => setTexx(e.target.value)}></input>
+        <div className="ui__url">
+          <input
+            style={{ flex: 1 }}
+            value={texx}
+            onChange={(e) => setTexx(e.target.value)}
+          ></input>
+          <button onClick={() => setModelUrl(texx)}>Load</button>
+        </div>
       </div>
     </div>
   );

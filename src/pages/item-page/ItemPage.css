@@ -14,4 +14,10 @@
   left: 0;
   padding: 2rem;
   z-index: 2;
+  width: 100%;
+}
+
+.ui__url {
+  width: 100%;
+  display: flex;
 }
